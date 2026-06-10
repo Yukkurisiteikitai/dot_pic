@@ -24,6 +24,8 @@ Default outputs are written to `outputs/`:
 
 - `sprite_sheet.png`: transparent sprite sheet
 - `sprite_sheet_4x.png`: nearest-neighbor preview
+- `crop_preview.png`: crop and padding overlay preview
+- `sheet_grid_preview.png`: equal-split frame grid preview
 - `frames/frame_001.png`: per-frame processed PNG
 - `frames/frame_001_4x.png`: per-frame preview
 - `palette.png`: palette swatches
@@ -38,6 +40,7 @@ uv run ai-pixel-cleaner input.png -o outputs/demo --size 96 --colors 24
 uv run ai-pixel-cleaner input.png --fit cover --cleanup weak
 uv run ai-pixel-cleaner input.png --no-outline-preserve --cleanup strong
 uv run ai-pixel-cleaner input.png --sheet-columns 4 --sheet-padding 1
+uv run ai-pixel-cleaner input.png --crop-pad-left 4 --crop-pad-top 2 --crop-pad-right 1 --crop-pad-bottom 2
 ```
 
 ## Web UI

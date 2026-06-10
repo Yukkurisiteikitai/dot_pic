@@ -27,7 +27,7 @@ class CleanOptions:
     background_tolerance: int = 24
     fill_small_holes: bool = True
     remove_isolated_pixels: bool = True
-    crop_padding: int = 2
+    crop_padding: tuple[int, int, int, int] = (2, 2, 2, 2)
     sheet_columns: int = 0
     sheet_padding: int = 0
 
@@ -39,6 +39,8 @@ class CleanResult:
     frame_preview_paths: list[Path]
     sheet_native_path: Path
     sheet_preview_path: Path
+    crop_preview_path: Path
+    sheet_grid_preview_path: Path
     palette_path: Path
     palette_hex_path: Path
     problem_map_path: Path
@@ -111,7 +113,7 @@ def process_sprite_sheet(
                 options.background_tolerance,
             )
 
-        cropped, crop_box = _crop_to_visible_bounds(source, options.crop_padding)
+        cropped, crop_box, padded_box = _crop_to_visible_bounds(source, options.crop_padding)
         fitted = _fit_to_canvas(cropped, options.target_size, options.fit)
         fitted_arr = np.asarray(fitted, dtype=np.uint8)
 
@@ -127,9 +129,11 @@ def process_sprite_sheet(
             {
                 "index": index,
                 "path": path,
+                "source_image": source.copy(),
                 "source_size": list(source.size),
                 "background_removed_pixels": int(background_removed_pixels),
                 "crop_box": list(crop_box),
+                "padded_box": list(padded_box),
                 "fitted_rgb": rgb,
                 "refined_mask": refined_mask,
                 "semi_alpha_mask": semi_alpha_mask,
@@ -147,6 +151,7 @@ def process_sprite_sheet(
     frame_paths: list[Path] = []
     problem_frames: list[Image.Image] = []
     frame_reports: list[dict] = []
+    crop_previews: list[Image.Image] = []
 
     for frame in prepared_frames:
         quantized = _map_rgb_to_palette(
@@ -189,6 +194,13 @@ def process_sprite_sheet(
 
         frame_images.append(frame_image)
         problem_frames.append(frame_problem)
+        crop_previews.append(
+            _make_crop_preview(
+                frame["source_image"],
+                tuple(frame["crop_box"]),
+                tuple(frame["padded_box"]),
+            )
+        )
         frame_paths.append(frame_path)
         frame_preview_paths.append(frame_preview_path)
         frame_reports.append(
@@ -219,9 +231,14 @@ def process_sprite_sheet(
     problem_sheet = _compose_sheet(problem_frames, columns, options.sheet_padding)
     sheet_preview = _make_preview(sheet_native, options.scale)
     problem_map_preview = _make_preview(problem_sheet, options.scale)
+    crop_preview = _compose_crop_preview(crop_previews)
+    sheet_rows = math.ceil(len(frame_images) / columns)
+    sheet_grid_preview = _make_sheet_grid_preview(sheet_native, columns, sheet_rows, options.sheet_padding)
 
     native_sheet_path = output_dir / "sprite_sheet.png"
     sheet_preview_path = output_dir / f"sprite_sheet_{options.scale}x.png"
+    crop_preview_path = output_dir / "crop_preview.png"
+    sheet_grid_preview_path = output_dir / "sheet_grid_preview.png"
     palette_path = output_dir / "palette.png"
     palette_hex_path = output_dir / "palette.hex"
     problem_map_path = output_dir / "problem_map.png"
@@ -229,6 +246,8 @@ def process_sprite_sheet(
 
     sheet_native.save(native_sheet_path)
     sheet_preview.save(sheet_preview_path)
+    crop_preview.save(crop_preview_path)
+    sheet_grid_preview.save(sheet_grid_preview_path)
     _make_palette_swatch(palette).save(palette_path)
     _write_palette_hex(palette_hex_path, palette)
     problem_map_preview.save(problem_map_path)
@@ -242,11 +261,13 @@ def process_sprite_sheet(
         frame_preview_paths=frame_preview_paths,
         sheet_native_path=native_sheet_path,
         sheet_preview_path=sheet_preview_path,
+        crop_preview_path=crop_preview_path,
+        sheet_grid_preview_path=sheet_grid_preview_path,
         palette_path=palette_path,
         palette_hex_path=palette_hex_path,
         problem_map_path=problem_map_path,
         columns=columns,
-        rows=math.ceil(len(frame_images) / columns),
+        rows=sheet_rows,
     )
     report_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
 
@@ -256,6 +277,8 @@ def process_sprite_sheet(
         frame_preview_paths=frame_preview_paths,
         sheet_native_path=native_sheet_path,
         sheet_preview_path=sheet_preview_path,
+        crop_preview_path=crop_preview_path,
+        sheet_grid_preview_path=sheet_grid_preview_path,
         palette_path=palette_path,
         palette_hex_path=palette_hex_path,
         problem_map_path=problem_map_path,
@@ -278,8 +301,11 @@ def _validate_options(options: CleanOptions) -> None:
         raise ValueError("alpha threshold must be between 0 and 255")
     if not 0 <= options.background_tolerance <= 255:
         raise ValueError("background tolerance must be between 0 and 255")
-    if options.crop_padding < 0 or options.crop_padding > 128:
-        raise ValueError("crop padding must be between 0 and 128")
+    if len(options.crop_padding) != 4:
+        raise ValueError("crop padding must contain four values")
+    for value in options.crop_padding:
+        if value < 0 or value > 128:
+            raise ValueError("crop padding must be between 0 and 128")
     if options.sheet_columns < 0:
         raise ValueError("sheet columns must be 0 or greater")
     if options.sheet_padding < 0 or options.sheet_padding > 64:
@@ -376,20 +402,27 @@ def _connected_background_mask(
     return visited
 
 
-def _crop_to_visible_bounds(image: Image.Image, padding: int) -> tuple[Image.Image, tuple[int, int, int, int]]:
+def _crop_to_visible_bounds(
+    image: Image.Image,
+    padding: tuple[int, int, int, int],
+) -> tuple[Image.Image, tuple[int, int, int, int], tuple[int, int, int, int]]:
     arr = np.asarray(image, dtype=np.uint8)
     visible = arr[..., 3] > 0
     if not np.any(visible):
-        return image, (0, 0, image.width, image.height)
+        full_box = (0, 0, image.width, image.height)
+        return image, full_box, full_box
 
     ys, xs = np.where(visible)
-    left = max(0, int(xs.min()) - padding)
-    top = max(0, int(ys.min()) - padding)
-    right = min(image.width, int(xs.max()) + 1 + padding)
-    bottom = min(image.height, int(ys.max()) + 1 + padding)
-    if left >= right or top >= bottom:
-        return image, (0, 0, image.width, image.height)
-    return image.crop((left, top, right, bottom)), (left, top, right, bottom)
+    pad_left, pad_top, pad_right, pad_bottom = padding
+    crop_left = max(0, int(xs.min()) - pad_left)
+    crop_top = max(0, int(ys.min()) - pad_top)
+    crop_right = min(image.width, int(xs.max()) + 1 + pad_right)
+    crop_bottom = min(image.height, int(ys.max()) + 1 + pad_bottom)
+    if crop_left >= crop_right or crop_top >= crop_bottom:
+        full_box = (0, 0, image.width, image.height)
+        return image, full_box, full_box
+    crop_box = (crop_left, crop_top, crop_right, crop_bottom)
+    return image.crop(crop_box), (int(xs.min()), int(ys.min()), int(xs.max()) + 1, int(ys.max()) + 1), crop_box
 
 
 def _fit_to_canvas(image: Image.Image, target_size: tuple[int, int], fit: FitMode) -> Image.Image:
@@ -633,6 +666,67 @@ def _compose_sheet(images: Sequence[Image.Image], columns: int, padding: int) ->
     return sheet
 
 
+def _make_crop_preview(
+    source: Image.Image,
+    content_box: tuple[int, int, int, int],
+    padded_box: tuple[int, int, int, int],
+) -> Image.Image:
+    preview = source.convert("RGBA").copy()
+    draw = Image.new("RGBA", preview.size, (0, 0, 0, 0))
+    overlay = np.array(draw, dtype=np.uint8, copy=True)
+
+    def paint_box(box: tuple[int, int, int, int], color: tuple[int, int, int, int]) -> None:
+        left, top, right, bottom = box
+        if left >= right or top >= bottom:
+            return
+        overlay[top:bottom, left] = color
+        overlay[top:bottom, right - 1] = color
+        overlay[top, left:right] = color
+        overlay[bottom - 1, left:right] = color
+
+    paint_box(padded_box, (0, 180, 255, 255))
+    paint_box(content_box, (255, 120, 0, 255))
+    return Image.alpha_composite(preview, Image.fromarray(overlay, "RGBA"))
+
+
+def _compose_crop_preview(images: Sequence[Image.Image]) -> Image.Image:
+    if not images:
+        return Image.new("RGBA", (1, 1), (0, 0, 0, 0))
+    columns = min(4, max(1, len(images)))
+    rows = math.ceil(len(images) / columns)
+    width, height = images[0].size
+    sheet = Image.new("RGBA", (columns * width, rows * height), (0, 0, 0, 0))
+    for index, image in enumerate(images):
+        x = (index % columns) * width
+        y = (index // columns) * height
+        sheet.alpha_composite(image, (x, y))
+    return sheet
+
+
+def _make_sheet_grid_preview(sheet: Image.Image, columns: int, rows: int, padding: int) -> Image.Image:
+    preview = sheet.convert("RGBA").copy()
+    arr = np.asarray(preview, dtype=np.uint8)
+    height, width = arr.shape[:2]
+    if columns <= 0 or rows <= 0 or sheet.width == 0 or sheet.height == 0:
+        return preview
+
+    cell_width = (sheet.width - max(0, columns - 1) * padding) // columns
+    cell_height = (sheet.height - max(0, rows - 1) * padding) // rows
+    if cell_width <= 0 or cell_height <= 0:
+        return preview
+
+    grid_color = np.array([0, 255, 120, 255], dtype=np.uint8)
+    for column in range(1, columns):
+        x = column * cell_width + max(0, column - 1) * padding
+        if 0 <= x < width:
+            arr[:, max(0, x - 1) : min(width, x + 1)] = grid_color
+    for row in range(1, rows):
+        y = row * cell_height + max(0, row - 1) * padding
+        if 0 <= y < height:
+            arr[max(0, y - 1) : min(height, y + 1), :] = grid_color
+    return Image.fromarray(arr, "RGBA")
+
+
 def _make_preview(image: Image.Image, scale: int) -> Image.Image:
     width, height = image.size
     return image.convert("RGBA").resize(
@@ -683,6 +777,8 @@ def _build_report(
     frame_preview_paths: Sequence[Path],
     sheet_native_path: Path,
     sheet_preview_path: Path,
+    crop_preview_path: Path,
+    sheet_grid_preview_path: Path,
     palette_path: Path,
     palette_hex_path: Path,
     problem_map_path: Path,
@@ -708,7 +804,7 @@ def _build_report(
         "outline_preserve": options.outline_preserve,
         "remove_background": options.remove_background,
         "background_tolerance": options.background_tolerance,
-        "crop_padding": options.crop_padding,
+        "crop_padding": list(options.crop_padding),
         "sheet_columns": columns,
         "sheet_rows": rows,
         "sheet_padding": options.sheet_padding,
@@ -725,6 +821,8 @@ def _build_report(
             "frame_preview_paths": [str(path) for path in frame_preview_paths],
             "sheet_native": str(sheet_native_path),
             "sheet_preview": str(sheet_preview_path),
+            "crop_preview": str(crop_preview_path),
+            "sheet_grid_preview": str(sheet_grid_preview_path),
             "palette": str(palette_path),
             "palette_hex": str(palette_hex_path),
             "problem_map": str(problem_map_path),

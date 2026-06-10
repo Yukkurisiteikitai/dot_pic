@@ -84,7 +84,31 @@ def build_parser() -> argparse.ArgumentParser:
         "--crop-padding",
         type=int,
         default=2,
-        help="Padding to keep around the detected subject bounds.",
+        help="Base padding to keep around the detected subject bounds.",
+    )
+    parser.add_argument(
+        "--crop-pad-top",
+        type=int,
+        default=None,
+        help="Override the top crop padding.",
+    )
+    parser.add_argument(
+        "--crop-pad-left",
+        type=int,
+        default=None,
+        help="Override the left crop padding.",
+    )
+    parser.add_argument(
+        "--crop-pad-right",
+        type=int,
+        default=None,
+        help="Override the right crop padding.",
+    )
+    parser.add_argument(
+        "--crop-pad-bottom",
+        type=int,
+        default=None,
+        help="Override the bottom crop padding.",
     )
     parser.add_argument(
         "--sheet-columns",
@@ -117,7 +141,12 @@ def main(argv: list[str] | None = None) -> int:
         background_tolerance=args.background_tolerance,
         fill_small_holes=not args.no_fill_small_holes,
         remove_isolated_pixels=not args.no_remove_isolated_pixels,
-        crop_padding=args.crop_padding,
+        crop_padding=(
+            args.crop_pad_left if args.crop_pad_left is not None else args.crop_padding,
+            args.crop_pad_top if args.crop_pad_top is not None else args.crop_padding,
+            args.crop_pad_right if args.crop_pad_right is not None else args.crop_padding,
+            args.crop_pad_bottom if args.crop_pad_bottom is not None else args.crop_padding,
+        ),
         sheet_columns=args.sheet_columns,
         sheet_padding=args.sheet_padding,
     )
@@ -126,6 +155,8 @@ def main(argv: list[str] | None = None) -> int:
 
     print(f"sheet: {result.fixed_path}")
     print(f"preview: {result.preview_path}")
+    print(f"crop_preview: {result.crop_preview_path}")
+    print(f"sheet_grid_preview: {result.sheet_grid_preview_path}")
     print(f"palette: {result.palette_path}")
     print(f"problem_map: {result.problem_map_path}")
     print(f"report: {result.report_path}")

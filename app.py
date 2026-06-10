@@ -33,7 +33,10 @@ def main() -> None:
         st.header("Background")
         remove_background = st.toggle("remove checker background", value=True)
         background_tolerance = st.slider("background tolerance", min_value=0, max_value=255, value=24)
-        crop_padding = st.slider("crop padding", min_value=0, max_value=16, value=2)
+        crop_pad_top = st.number_input("crop padding top", min_value=0, max_value=128, value=2, step=1)
+        crop_pad_left = st.number_input("crop padding left", min_value=0, max_value=128, value=2, step=1)
+        crop_pad_right = st.number_input("crop padding right", min_value=0, max_value=128, value=2, step=1)
+        crop_pad_bottom = st.number_input("crop padding bottom", min_value=0, max_value=128, value=2, step=1)
 
         st.header("Cleanup")
         fill_small_holes = st.toggle("fill small holes", value=True)
@@ -71,7 +74,12 @@ def main() -> None:
         background_tolerance=int(background_tolerance),
         fill_small_holes=fill_small_holes,
         remove_isolated_pixels=remove_isolated_pixels,
-        crop_padding=int(crop_padding),
+        crop_padding=(
+            int(crop_pad_left),
+            int(crop_pad_top),
+            int(crop_pad_right),
+            int(crop_pad_bottom),
+        ),
         sheet_columns=int(sheet_columns),
         sheet_padding=int(sheet_padding),
     )
@@ -131,6 +139,12 @@ def main() -> None:
     with palette_col:
         st.image(str(result.palette_path), caption="palette", use_container_width=True)
 
+    extra_cols = st.columns(2)
+    with extra_cols[0]:
+        st.image(str(result.crop_preview_path), caption="crop padding preview", use_container_width=True)
+    with extra_cols[1]:
+        st.image(str(result.sheet_grid_preview_path), caption="sheet grid preview", use_container_width=True)
+
     if result.frame_preview_paths:
         st.subheader("Frames")
         frame_cols = st.columns(min(4, max(1, len(result.frame_preview_paths))))
@@ -139,11 +153,13 @@ def main() -> None:
                 st.image(str(path), caption=path.name, use_container_width=True)
 
     st.subheader("Downloads")
-    download_cols = st.columns(6)
+    download_cols = st.columns(8)
     download_items = [
         ("sprite_sheet.png", result.fixed_path, "image/png"),
         (result.preview_path.name, result.preview_path, "image/png"),
         (result.problem_map_path.name, result.problem_map_path, "image/png"),
+        (result.crop_preview_path.name, result.crop_preview_path, "image/png"),
+        (result.sheet_grid_preview_path.name, result.sheet_grid_preview_path, "image/png"),
         (result.palette_path.name, result.palette_path, "image/png"),
         (result.palette_hex_path.name, result.palette_hex_path, "text/plain"),
         (result.report_path.name, result.report_path, "application/json"),
