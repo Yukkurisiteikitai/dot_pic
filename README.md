@@ -57,7 +57,6 @@ The UI supports multiple uploads, checker background removal, alpha cleanup,
 sprite sheet layout, and per-frame previews.
 
 ## screenshots
-![](影響範囲やパレットのイメージ.png)
-![](解像度変化イメージ.png)
-![](ダウンロードの部分のイメージ.png)
-
+![](./docs/影響範囲やパレットのイメージ.png)
+![](./docs/解像度変化イメージ.png)
+![](./docs/ダウンロードの部分のイメージ.png)
