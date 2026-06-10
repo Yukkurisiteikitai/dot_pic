@@ -17,7 +17,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--output-dir",
         type=Path,
         default=Path("outputs"),
-        help="Directory for fixed.png, preview, palette, problem map, and report.",
+        help="Directory for sprite_sheet.png, previews, palette, problem map, and report.",
     )
     parser.add_argument(
         "--size",
@@ -59,6 +59,45 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Allow cleanup to modify pixels on transparent edges.",
     )
+    parser.add_argument(
+        "--background-tolerance",
+        type=int,
+        default=24,
+        help="Color tolerance for checker background removal.",
+    )
+    parser.add_argument(
+        "--no-remove-background",
+        action="store_true",
+        help="Disable checker background removal.",
+    )
+    parser.add_argument(
+        "--no-fill-small-holes",
+        action="store_true",
+        help="Disable small hole filling in alpha cleanup.",
+    )
+    parser.add_argument(
+        "--no-remove-isolated-pixels",
+        action="store_true",
+        help="Disable isolated-pixel removal in alpha cleanup.",
+    )
+    parser.add_argument(
+        "--crop-padding",
+        type=int,
+        default=2,
+        help="Padding to keep around the detected subject bounds.",
+    )
+    parser.add_argument(
+        "--sheet-columns",
+        type=int,
+        default=0,
+        help="Number of columns in the sprite sheet grid. Use 0 for auto.",
+    )
+    parser.add_argument(
+        "--sheet-padding",
+        type=int,
+        default=0,
+        help="Padding in pixels between frames in the sprite sheet.",
+    )
     return parser
 
 
@@ -74,15 +113,24 @@ def main(argv: list[str] | None = None) -> int:
         fit=args.fit,
         alpha_threshold=args.alpha_threshold,
         outline_preserve=not args.no_outline_preserve,
+        remove_background=not args.no_remove_background,
+        background_tolerance=args.background_tolerance,
+        fill_small_holes=not args.no_fill_small_holes,
+        remove_isolated_pixels=not args.no_remove_isolated_pixels,
+        crop_padding=args.crop_padding,
+        sheet_columns=args.sheet_columns,
+        sheet_padding=args.sheet_padding,
     )
     result = clean_image(args.input, args.output_dir, options)
     report = result.report
 
-    print(f"fixed: {result.fixed_path}")
+    print(f"sheet: {result.fixed_path}")
     print(f"preview: {result.preview_path}")
     print(f"palette: {result.palette_path}")
     print(f"problem_map: {result.problem_map_path}")
     print(f"report: {result.report_path}")
+    for frame_path in result.frame_paths:
+        print(f"frame: {frame_path}")
     print(
         "summary: "
         f"{report['actual_palette_colors']} colors, "
