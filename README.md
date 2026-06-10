@@ -60,3 +60,6 @@ sprite sheet layout, and per-frame previews.
 ![](./docs/影響範囲やパレットのイメージ.png)
 ![](./docs/解像度変化イメージ.png)
 ![](./docs/ダウンロードの部分のイメージ.png)
+
+# LICENSE
+[MIT](./LICENSE)
