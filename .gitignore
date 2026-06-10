@@ -1,0 +1,8 @@
+.venv/
+.uv-cache/
+.streamlit-home/
+__pycache__/
+*.py[cod]
+.DS_Store
+outputs/
+.streamlit/
