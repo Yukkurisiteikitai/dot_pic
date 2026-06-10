@@ -11,7 +11,8 @@ Asepriteなどのツールで検査や修復が容易になります。
 [スクリーンショット](##スクリーンショット)
 
 ## セットアップ
-
+1. python/uvをインストールしてください
+2. このスクリプトを実行してください
 ```sh
 uv venv .venv
 uv sync
@@ -47,6 +48,11 @@ uv run ai-pixel-cleaner input.png --crop-pad-left 4 --crop-pad-top 2 --crop-pad-
 ```
 
 ## Web UI
+```sh
+uv venv .venv
+uv sync
+```
+
 
 ```sh
 uv run streamlit run app.py

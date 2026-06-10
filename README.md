@@ -12,7 +12,8 @@ the result into a clean PNG sheet.
 [screenshots](##screenshots)
 
 ## Setup
-
+1. python/uv install
+2. 
 ```sh
 uv venv .venv
 uv sync
