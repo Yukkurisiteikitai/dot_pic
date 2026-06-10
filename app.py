@@ -23,7 +23,7 @@ def main() -> None:
         )
 
         st.header("Pixel Settings")
-        target = st.selectbox("target size", [32, 48, 64, 96, 128], index=2)
+        target = st.selectbox("target size", [32, 48, 64, 96, 128, 160, 192, 256, 384, 512], index=2)
         colors = st.select_slider("palette colors", options=[8, 12, 16, 24, 32], value=16)
         scale = st.select_slider("preview scale", options=[2, 4, 6, 8], value=4)
         cleanup = st.selectbox("cleanup", ["off", "weak", "normal", "strong"], index=2)
