@@ -13,7 +13,7 @@ the result into a clean PNG sheet.
 
 ## Setup
 1. python/uv install
-2. 
+2. Please run this script.
 ```sh
 uv venv .venv
 uv sync
