@@ -1,3 +1,5 @@
+[日本語](./docs/readme_ja.md)
+
 # AI Pixel Cleaner
 
 AI Pixel Cleaner turns AI-generated images into low-resolution, limited-palette,
@@ -6,6 +8,8 @@ Aseprite.
 
 It removes checker backgrounds, hardens alpha, reduces colors, and reassembles
 the result into a clean PNG sheet.
+
+[screenshots](##screenshots)
 
 ## Setup
 
@@ -51,3 +55,9 @@ uv run streamlit run app.py
 
 The UI supports multiple uploads, checker background removal, alpha cleanup,
 sprite sheet layout, and per-frame previews.
+
+## screenshots
+![](影響範囲やパレットのイメージ.png)
+![](解像度変化イメージ.png)
+![](ダウンロードの部分のイメージ.png)
+
